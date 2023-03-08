@@ -3,6 +3,7 @@ package ngrok
 import (
 	"context"
 	"net"
+	"net/url"
 	"time"
 
 	"golang.ngrok.com/ngrok/config"
@@ -17,15 +18,26 @@ type Tunnel interface {
 	// code that expects a net.Listener seamlessly without any changes.
 	net.Listener
 
+	// Information associated with the tunnel
+	TunnelInfo
+
 	// Close is a convenience method for calling Tunnel.CloseWithContext
 	// with a context that has a timeout of 5 seconds. This also allows the
 	// Tunnel to satisfy the io.Closer interface.
 	Close() error
+
 	// CloseWithContext closes the Tunnel. Closing a tunnel is an operation
 	// that involves sending a "close" message over the parent session.
 	// Since this is a network operation, it is most correct to provide a
 	// context with a timeout.
 	CloseWithContext(context.Context) error
+
+	// Session returns the tunnel's parent Session object that it
+	// was started on.
+	Session() Session
+}
+
+type TunnelInfo interface {
 	// ForwardsTo returns a human-readable string presented in the ngrok
 	// dashboard and the Tunnels API. Use config.WithForwardsTo when
 	// calling Session.Listen to set this value explicitly.
@@ -40,9 +52,6 @@ type Tunnel interface {
 	// Proto returns the protocol of the tunnel's endpoint.
 	// Labeled tunnels will return the empty string.
 	Proto() string
-	// Session returns the tunnel's parent Session object that it
-	// was started on.
-	Session() Session
 	// URL returns the tunnel endpoint's URL.
 	// Labeled tunnels will return the empty string.
 	URL() string
@@ -67,6 +76,29 @@ func Listen(ctx context.Context, tunnelConfig config.Tunnel, connectOpts ...Conn
 		return nil, err
 	}
 	return tunnel, nil
+}
+
+// ListenAndForward creates a new [Tunnel] after connecting a new [Session], and
+// then forwards all connections to the provided URL.
+// This is a shortcut for calling [Connect] then [Session].ListenAndForward.
+//
+// Access to the underlying [Session] that was started automatically can be
+// accessed via [Forwarder].Session.
+//
+// If an error is encoutered during [Session].ListenAndForward, the [Session]
+// object that was created will be closed automatically.
+func ListenAndForward(ctx context.Context, backend *url.URL, tunnelConfig config.Tunnel, connectOpts ...ConnectOption) (Forwarder, error) {
+	sess, err := Connect(ctx, connectOpts...)
+	if err != nil {
+		return nil, err
+	}
+	fwd, err := sess.ListenAndForward(ctx, backend, tunnelConfig)
+	if err != nil {
+		_ = sess.Close()
+		return nil, err
+	}
+
+	return fwd, nil
 }
 
 type tunnelImpl struct {
@@ -127,6 +159,28 @@ func (t *tunnelImpl) Session() Session {
 	return t.Sess
 }
 
+// Conn is a connection from an ngrok [Tunnel].
+//
+// It implements the standard [net.Conn] interface, and has additional methods
+// to get ngrok-specific information.
+//
+// Because the [net.Listener] interface requires `Accept` to return a
+// [net.Conn], you will have to type-assert it to an ngrok [Conn]:
+// ```
+// conn, _ := tun.Accept()
+// ngrokConn := conn.(ngrok.Conn)
+// ```
+type Conn interface {
+	net.Conn
+	// Proto returns the tunnel protocol for this connection.
+	Proto() string
+	// EdgeType returns the type of the edge that matched this tunnel.
+	EdgeType() string
+	// PassthroughTLS returns whether this connection contains an end-to-end tls
+	// connection.
+	PassthroughTLS() bool
+}
+
 type connImpl struct {
 	net.Conn
 	Proxy *tunnel_client.ProxyConn
@@ -134,4 +188,16 @@ type connImpl struct {
 
 func (c *connImpl) ProxyConn() *tunnel_client.ProxyConn {
 	return c.Proxy
+}
+
+func (c *connImpl) Proto() string {
+	return c.Proxy.Header.Proto
+}
+
+func (c *connImpl) EdgeType() string {
+	return c.Proxy.Header.EdgeType
+}
+
+func (c *connImpl) PassthroughTLS() bool {
+	return c.Proxy.Header.PassthroughTLS
 }

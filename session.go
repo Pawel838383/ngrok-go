@@ -38,6 +38,11 @@ type Session interface {
 	// connections. The returned Tunnel object is a net.Listener.
 	Listen(ctx context.Context, cfg config.Tunnel) (Tunnel, error)
 
+	// ListenAndForward creates a new Tunnel which will listen for new inbound
+	// connections. Connections on this tunnel are automatically forwarded to
+	// the provided URL.
+	ListenAndForward(ctx context.Context, backend *url.URL, cfg config.Tunnel) (Forwarder, error)
+
 	// Close ends the ngrok session. All Tunnel objects created by Listen
 	// on this session will be closed.
 	Close() error
@@ -435,6 +440,7 @@ func Connect(ctx context.Context, opts ...ConnectOption) (Session, error) {
 			PlanName:        resp.Extra.PlanName,
 			Banner:          resp.Extra.Banner,
 			SessionDuration: resp.Extra.SessionDuration,
+			Logger:          logger,
 		})
 
 		if cfg.HeartbeatHandler != nil {
@@ -515,6 +521,8 @@ type sessionInner struct {
 	PlanName        string
 	Banner          string
 	SessionDuration int64
+
+	Logger log15.Logger
 }
 
 func (s *sessionImpl) inner() *sessionInner {
@@ -572,6 +580,15 @@ func (s *sessionImpl) Listen(ctx context.Context, cfg config.Tunnel) (Tunnel, er
 	}
 
 	return t, nil
+}
+
+func (s *sessionImpl) ListenAndForward(ctx context.Context, url *url.URL, cfg config.Tunnel) (Forwarder, error) {
+	tun, err := s.Listen(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return forwardTunnel(ctx, tun, url), nil
 }
 
 // The rest of the `sessionImpl` methods are non-public, but can be

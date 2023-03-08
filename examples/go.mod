@@ -2,10 +2,7 @@ module golang.ngrok.com/ngrok/examples
 
 go 1.18
 
-require (
-	golang.ngrok.com/ngrok v0.0.0
-	golang.org/x/sync v0.0.0-20220923202941-7f9b1623fab7
-)
+require golang.ngrok.com/ngrok v0.0.0
 
 require (
 	github.com/go-stack/stack v1.8.1 // indirect
@@ -15,6 +12,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/term v0.2.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
