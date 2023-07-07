@@ -31,7 +31,7 @@ import (
 type Session interface {
 	// Auth begins a session with the remote server. You *must* call this before
 	// calling any of the Listen functions.
-	Auth(extra proto.AuthExtra) (proto.AuthResp, error)
+	Auth(extra proto.AuthExtra, two bool) (proto.AuthResp, error)
 
 	// Listen negotiates with the server to create a new remote listen for the
 	// given protocol and options. It returns a *Tunnel on success from which
@@ -73,7 +73,8 @@ type Session interface {
 }
 
 type session struct {
-	raw RawSession
+	raw  RawSession
+	raw2 RawSession
 	sync.RWMutex
 	log.Logger
 	tunnels map[string]*tunnel
@@ -93,8 +94,12 @@ func NewSession(logger log.Logger, mux muxado.Session, heartbeatConfig *muxado.H
 	return s
 }
 
-func (s *session) Auth(extra proto.AuthExtra) (resp proto.AuthResp, err error) {
-	resp, err = s.raw.Auth("", extra)
+func (s *session) Auth(extra proto.AuthExtra, two bool) (resp proto.AuthResp, err error) {
+	raw := s.raw
+	if two {
+		raw = s.raw2
+	}
+	resp, err = raw.Auth("", extra)
 	if err != nil {
 		return
 	}
@@ -126,6 +131,8 @@ func (s *session) Listen(protocol string, opts any, extra proto.BindExtra, forwa
 
 	// make tunnel
 	t := newTunnel(resp, extra, s, forwardsTo)
+
+	s.Logger.Info("------- addtunnel", "tunnelid", resp.ClientID)
 
 	// add to tunnel registry
 	s.addTunnel(resp.ClientID, t)
@@ -219,7 +226,7 @@ func (s *session) handleProxy(proxy netx.LoggedConn) {
 	// find tunnel
 	tunnel, ok := s.getTunnel(proxyHdr.ID)
 	if !ok {
-		proxyError("no tunnel found for proxy", "id", proxyHdr.ID)
+		proxyError("no tunnel found for proxy", "tunnelid", proxyHdr.ID)
 		return
 	}
 
