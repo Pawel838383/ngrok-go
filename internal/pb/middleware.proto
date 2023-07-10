@@ -72,6 +72,15 @@ message MiddlewareConfiguration {
     repeated string allow_domains = 6;
     repeated string scopes = 7;
   }
+
+  BotFilter bot_filter = 13;
+  message BotFilter {
+    repeated string allow = 1;
+    repeated string deny = 2;
+    string description = 3;
+    bool allow_empty_user_agent = 4;
+    bool use_default_deny = 5;
+  }
 }
 
 message HTTPMiddleware {
@@ -86,6 +95,7 @@ message HTTPMiddleware {
   MiddlewareConfiguration.Headers request_headers = 9;
   MiddlewareConfiguration.Headers response_headers = 10;
   MiddlewareConfiguration.WebsocketTCPConverter websocket_tcp_converter = 11;
+  MiddlewareConfiguration.BotFilter bot_filter = 12;
 }
 
 message TCPMiddleware {
