@@ -5,7 +5,7 @@ import (
 )
 
 // BotFilter is a pair of strings slices that allow/deny traffic to an endpoint
-// BotFilter also 2 boolean flags that either allow empty user agents or use a
+// and 2 boolean flags that either allow empty user agents or use a
 // ngrok defined deny list
 type botFilter struct {
 	// slice of regex strings for allowed user agents
