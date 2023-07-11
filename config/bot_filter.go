@@ -33,7 +33,7 @@ func (b *botFilter) toProtoConfig() *pb.MiddlewareConfiguration_BotFilter {
 	}
 }
 
-// WithBotFilter configures botfilter from a set passed parameters.
+// WithBotFilter configures botfilter from a set of passed parameters.
 func WithBotFilter(allow []string, deny []string, description string, allowEmptyUA bool, useDefaultDeny bool) HTTPEndpointOption {
 	return httpOptionFunc(func(cfg *httpOptions) {
 		cfg.BotFilter = &botFilter{
