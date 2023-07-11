@@ -4,13 +4,20 @@ import (
 	"golang.ngrok.com/ngrok/internal/pb"
 )
 
-// Configuration for Bot Filtering.
+// BotFilter is a pair of strings slices that allow/deny traffic to an endpoint
+// BotFilter also 2 boolean flags that either allow empty user agents or use a
+// ngrok defined deny list
 type botFilter struct {
-	Allow               []string
-	Deny                []string
-	Description         string
+	// slice of regex strings for allowed user agents
+	Allow []string
+	// slice of regex strings for denied user agents
+	Deny []string
+	// description of what users have defined
+	Description string
+	// allows for empty user agents traffic to make it endpoint
 	AllowEmptyUserAgent bool
-	UseDefaultDeny      bool
+	// uses internal list of commonly known bots
+	UseDefaultDeny bool
 }
 
 func (b *botFilter) toProtoConfig() *pb.MiddlewareConfiguration_BotFilter {
@@ -26,7 +33,7 @@ func (b *botFilter) toProtoConfig() *pb.MiddlewareConfiguration_BotFilter {
 	}
 }
 
-// BotFilter configures botfilter for this edge.
+// WithBotFilter configures botfilter from a set passed parameters.
 func WithBotFilter(allow []string, deny []string, description string, allowEmptyUA bool, useDefaultDeny bool) HTTPEndpointOption {
 	return httpOptionFunc(func(cfg *httpOptions) {
 		cfg.BotFilter = &botFilter{
