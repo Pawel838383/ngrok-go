@@ -264,7 +264,7 @@ func (s *reconnectingSession) connect(acceptErr error) error {
 		go func() {
 			for {
 				time.Sleep(5000 * time.Millisecond)
-				s.Info("connect2")
+				s.Info("--- connect2")
 
 				raw2, err := s.dialer()
 				if err != nil {
@@ -280,9 +280,19 @@ func (s *reconnectingSession) connect(acceptErr error) error {
 					s.failTemp(boff, err, raw2)
 					continue
 				}
-				s.Info("connect2 receive")
+
+				// re-establish binds
+				// todo: only send this if in a different region
+				s.Info("--- restart binds")
+				err = s.restartBinds(raw2)
+				if err != nil {
+					s.failTemp(boff, err, raw2)
+					continue
+				}
+
+				s.Info("--- connect2 receive")
 				s.receive(true)
-				s.Info("connect2 done")
+				s.Info("--- connect2 done")
 				return
 			}
 		}()
